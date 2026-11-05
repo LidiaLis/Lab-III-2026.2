@@ -1,21 +1,51 @@
-import { View, Image, TouchableOpacity, Text, FlatList } from 'react-native';
+import { View, Image, TouchableOpacity, Text, FlatList, Alert } from 'react-native';
 import { Button } from '../../components/Button';
 import { styles } from './styles';
 import { Input } from '../../components/Input';
 import { Filter} from '../../components/Filter';
 import { FilterStatus } from '../../types/FilterStatus';
 import { Item } from '../../components/Item';
-import { useState } from 'react';
+import { useState , useEffect} from 'react';
+import { itemsStorage, ItemStorage } from "@/storage/itemsStorage";
 
-const FILTER_STATUS: FilterStatus[] = [
-	FilterStatus.PENDING, FilterStatus.DONE
-];
+const FILTER_STATUS: FilterStatus[] = [FilterStatus.PENDING, FilterStatus.DONE];
 
-export function Home() {
-    const[filter, setFilter] = useState(FilterStatus.PENDING)
-	  const [description, setDescription] = useState("");
-    const [items, setItems] = useState<any>([]);
+export function Home() {  
+  const[filter, setFilter] = useState(FilterStatus.PENDING)
+  const [description, setDescription] = useState("");
+  const [items, setItems] = useState<ItemStorage[]>([]);
+    
+  async function getItems() {
+    try {
+      const response = await itemsStorage.get();
+      setItems(response);
+    } catch(error) {
+      console.log(error);
+      Alert.alert("Erro", "Não foi possível filtrar os itens.")
+    }
+  }
 
+  
+  useEffect(() => {
+    getItems();
+  }, [])
+
+  async function handleAdd() {
+    if(!description.trim()){
+      return Alert.alert("Adicionar", "Informe a descrição para adicionar.")
+    }
+
+    const newItem = {
+      id: Math.random().toString(36).substring(2),
+      description,
+      status: FilterStatus.PENDING,
+    }
+
+    await itemsStorage.add(newItem);
+    await getItems();   
+
+    setDescription("")
+  }
 
   return (
     <View style={styles.container}>
@@ -27,13 +57,14 @@ export function Home() {
       <View style={styles.form}>
         <Input 
           placeholder="O que você precisa" 
+          value={description}
           onChangeText={(value) => setDescription(value)}
         />
-
         <Button title="Adicionar" 
-	        activeOpacity={0.2} 
-	        onPress={() => console.log("Adicionar")} 
-	      />
+        activeOpacity={0.2} 
+        onPress={handleAdd}         
+        />
+
       </View>
       
       <View style={styles.content}>
@@ -52,7 +83,7 @@ export function Home() {
           </TouchableOpacity>
         </View>
 
-<FlatList
+        <FlatList
           data={items}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
@@ -60,6 +91,7 @@ export function Home() {
               data={item}
               onStatus={() => console.log("Mudar o status")}
               onRemove={() => console.log("Remover item")}
+              
             />
           )}
           showsVerticalScrollIndicator={false}
